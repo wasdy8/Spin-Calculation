@@ -9,14 +9,14 @@ There are 3 main steps to using this UI:
 
 
 Current status:
-In building mode
-Need to add error checks
+-In building mode
+-Need to add error checks
 
 Future add-on/plans:
-Better diagrams for spins
-Choice of spin-spin interaction strength, J
-Ability to choose values of J for different interactions
-Better desgin of UI
+-Better diagrams for spins
+-Choice of spin-spin interaction strength, J
+-Ability to choose values of J for different interactions
+-Better desgin of UI
 
 Far in the future:
-Possibility of infinite chain representation/DMRG
+-Possibility of infinite chain representation/DMRG
