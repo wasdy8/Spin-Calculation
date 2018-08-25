@@ -82,6 +82,9 @@ class Spin_Object(object):
         #Spin ID number.
         self.spin_number = main_canvas.spin_count
         
+        #Set spin status (Locked: Due to interaction arrow, need to lock the spin. -- 0 is unlocked.)
+        self.lock_status = 0
+        
         #Create image.
         self.spin_image = tk.PhotoImage(
             file = '{}{}'.format(image_path, spin_type))
@@ -113,20 +116,28 @@ class Spin_Object(object):
         #Moving the spin.
         main_canvas.tag_bind(self.spin, '<Button1-Motion>', 
                              self.startmove)
-        
         #End moving the spin, delete the 2nd spin if necessary.
         main_canvas.tag_bind(self.spin, '<ButtonRelease-1>', self.endmove)    
 
     def startmove(self, event):
-
-        #Calculating how much to move the spin.
-        rel_xpos = event.x - self.x
-        rel_ypos = event.y - self.y
         
-        #Updating the start motion value.
-        self.x, self.y = event.x, event.y
+        print('{0}'.format(self.lock_status))
         
-        main_canvas.move(self.spin, rel_xpos, rel_ypos)
+        if self.lock_status == 0:
+            #Calculating how much to move the spin.
+            rel_xpos = event.x - self.x
+            rel_ypos = event.y - self.y
+        
+            #Updating the start motion value.
+            self.x, self.y = event.x, event.y
+        
+            main_canvas.move(self.spin, rel_xpos, rel_ypos)
+            
+        else:
+            self.error_lock_window = tk.Toplevel()
+            self.error_lock = tk.Label(self.error_lock_window, 
+                               text = 'Error!\nSpin is linked via an interaction.\nPlease remove interaction arrow first.')
+            self.error_lock.grid(row = 0, column = 0)
         
     def endmove(self, event):
         final_x, final_y = main_canvas.coords(self.spin)
@@ -196,10 +207,6 @@ class Spin_Object(object):
                     for j in range(0, len(main_canvas.spin_list)):
                         main_canvas.spin_list[j].spin_number = j
 
-        #Stop reacting to mouse motion & mouse release.
-        main_canvas.tag_unbind(self.spin, '<Button1-Motion>')   
-        main_canvas.tag_unbind(self.spin, '<ButtonRelease-1>') 
-
 
 class Spin_Button(object):
     def __init__(self, spin_type, xpos, ypos, button_id):
@@ -249,6 +256,10 @@ class Spin_Button(object):
             main_canvas.int_list.append(Int_Arrow(
                 self.xpos, self.ypos, main_canvas.s_button_list[main_canvas.link_status].xpos,
                 main_canvas.s_button_list[main_canvas.link_status].ypos))
+            
+            #Lock spins.
+            main_canvas.spin_list[main_canvas.link_status].lock_status += 1
+            main_canvas.spin_list[self.id].lock_status += 1
             
             #Reset spin list status to no clicked spin.
             main_canvas.link_status = -1
@@ -335,6 +346,17 @@ class Int_Arrow(object):
             elif xint2 == self.xpos1 and xint1 == self.xpos2 and yint2 == self.ypos1 and yint1 == self.ypos2:
                 del main_canvas.int_list[z]
                 
+        #Help to remove one locking value on spin object. If lock_status = 0 after this, the spin is officially
+        #unlocked.
+        for j in main_canvas.spin_list:
+            spinx, spiny = main_canvas.coords(j.spin)
+            if spinx == self.xpos1 and spiny == self.ypos1:
+                j.lock_status -= 1
+            
+            if spinx == self.xpos2 and spiny == self.ypos2:
+                j.lock_status -= 1
+                
+                
     def resume(self):
         self.del_query.destroy()
         
@@ -408,23 +430,21 @@ class Main_Screen(tk.Frame):
         main_canvas.itemconfigure(main_canvas.mode_window, window = main_canvas.mode_button)
         
         for i in main_canvas.int_list:
-            main_canvas.tag_bind(i.arrow, '<Button-2>', i.delete_popup)
+            main_canvas.tag_bind(i.arrow, '<Button-1>', i.delete_popup)
         
         #Create variable link status to track clicks on spin buttons.
         main_canvas.link_status = -1
         
         #Initialise variables.
-        button_id = -1
         main_canvas.s_button_list = []
         
         for i in main_canvas.spin_list:
-            button_id += 1
             x_pos, y_pos = main_canvas.coords(i.spin)
             
             #Check that the spin we are looking at is not at its original position (outside grid).
             if x_pos != i.xpos:
                 main_canvas.s_button_list.append(
-                    Spin_Button(spin_type, x_pos, y_pos, button_id))
+                    Spin_Button(spin_type, x_pos, y_pos, i.spin_number))
                 
     def mode_to_spin(self):
         #Raise button.
@@ -435,7 +455,7 @@ class Main_Screen(tk.Frame):
         main_canvas.delete('sp_button')
         
         for i in main_canvas.int_list:
-            main_canvas.tag_unbind(i.arrow, '<Button-2>')
+            main_canvas.tag_unbind(i.arrow, '<Button-1>')
             
     def calc_initiate(self):
         #To start calculations, need to extract all spins & interaction info.
